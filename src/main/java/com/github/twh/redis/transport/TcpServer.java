@@ -1,24 +1,16 @@
-package com.github.twh.redis;
+package com.github.twh.redis.transport;
 
-import com.github.twh.redis.handler.RedisServerHandler;
-import com.github.twh.redis.handler.RedisMessageHandler;
+import com.github.twh.redis.RedisServer;
+import com.github.twh.redis.transport.handler.ServerSocketChannelInitializer;
+import com.github.twh.redis.transport.handler.SocketChannelInitializer;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.ServerSocketChannel;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.redis.RedisDecoder;
-import io.netty.handler.codec.redis.RedisEncoder;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
-import io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Future;
-
-import static com.github.twh.redis.Constant.REDIS_SERVER;
 
 /**
  * @author wenhai.tan
@@ -42,31 +34,14 @@ public class TcpServer {
     public Future<Void> start() {
         bossGroup = new NioEventLoopGroup(1);
         workGroup = new NioEventLoopGroup(1);
-        RedisMessageHandler redisMessageHandler = new RedisMessageHandler();
+
         startFuture = new ServerBootstrap()
             .group(bossGroup, workGroup)
             .channel(NioServerSocketChannel.class)
             .childOption(ChannelOption.TCP_NODELAY, true)
             .childOption(ChannelOption.SO_KEEPALIVE, true)
-            .childHandler(new ChannelInitializer<SocketChannel>() {
-                @Override
-                protected void initChannel(SocketChannel ch) {
-                    ch.attr(REDIS_SERVER).set(redisServer);
-                    ChannelPipeline pipeline = ch.pipeline();
-                    if (log.isDebugEnabled()) {
-                        pipeline.addLast(new LoggingHandler(LogLevel.DEBUG));
-                    }
-                    pipeline.addLast(new RedisDecoder(true))
-                        .addLast(new RedisEncoder())
-                        .addLast(redisMessageHandler);
-                }
-            })
-            .handler(new ChannelInitializer<ServerSocketChannel>() {
-                @Override
-                protected void initChannel(ServerSocketChannel serverSocketChannel) {
-                    serverSocketChannel.pipeline().addLast(new RedisServerHandler());
-                }
-            })
+            .handler(new ServerSocketChannelInitializer())
+            .childHandler(new SocketChannelInitializer())
             .bind(redisServer.getConfig().getHost(), redisServer.getConfig().getPort())
             .addListener((ChannelFutureListener) future -> {
                 if (future.isSuccess()) {
