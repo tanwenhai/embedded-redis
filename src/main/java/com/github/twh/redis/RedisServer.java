@@ -20,7 +20,11 @@ public class RedisServer {
 
     private final RedisConfig config;
 
-    public RedisServer() {
+    public static RedisServer getInstance() {
+        return InstanceHolder.instance;
+    }
+
+    private RedisServer() {
         config = RedisConfig.getConfig();
         databases = new Database[config.getPort()];
     }
@@ -63,5 +67,9 @@ public class RedisServer {
 
     public void awaitStop() {
         netServer.awaitStop();
+    }
+
+    private static class InstanceHolder {
+        static RedisServer instance = new RedisServer();
     }
 }
